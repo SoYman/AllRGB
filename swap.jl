@@ -10,41 +10,44 @@ using Colors
 print(", Colors")
 using FixedPointNumbers
 print(", FixedPointNumbers")
-using Debug
-print(", Debug")
+#using Debug
+#print(", Debug")
 using Distances
 print(", Distances")
 using ProfileView
 print(", ProfileView")
+using ParallelAccelerator
+print(", ParallelAccelerator")
 include("Blur.jl")
 print(", Blur")
 include("Utility.jl")
-print(", Utility.\n")
+print(", Utility")
+println(".")
 print("libraries loaded\n")
 
 # Constants
 
-offsetsshortrook = [(1,0),(0,1)]
-# offsetsking = [(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1),(1,1)]
-offsetsking = [(1,0),(1,1),(0,1),(-1,0)]
+# const offsetsshortrook = [(1,0),(0,1)]
+# # const offsetsking = [(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1),(1,1)]
+# const offsetsking = [(1,0),(1,1),(0,1),(-1,0)]
 
-offsetsknight = [(1,2), (2,1), (2,-1), (1,-2)]
+# const offsetsknight = [(1,2), (2,1), (2,-1), (1,-2)]
 
-offsetsrook = ([[(n,0),(0,n)] for n in 1:8])
+# const offsetsrook = ([[(n,0),(0,n)] for n in 1:8])
 
-offsetsrook = ([[(n,0),(n,n),(0,n),(-n,0)] for n in 1:8])
+# const offsetsrook = ([[(n,0),(n,n),(0,n),(-n,0)] for n in 1:8])
 
-offsetsten = [(y,x) for y=-10:10, x=-10:10]
+# const offsetsten = [(y,x) for y=-10:10, x=-10:10]
 
 # Functions
 
 function shuffledallrgb(bitdepth)
-    winy = 1 << int(bitdepth*1.5-0.5)
-    winx = 1 << int(bitdepth*1.5)
+    winy = 1 << floor(Int, bitdepth*1.5)
+    winx = 1 << floor(Int, bitdepth*1.5+0.5)
     bitstride = (1 / (1 << bitdepth))
 
 
-    colors = [e for e in [RGB{Float32}(r,g,b) for r = 0:bitstride:1, g = 0:bitstride:1, b = 0:bitstride:1]]
+    colors = flatten([RGB{Float32}(r,g,b) for r = 0:bitstride:1, g = 0:bitstride:1, b = 0:bitstride:1])
     println("Colors array initialised")
     # sort!(colors, alg=QuickSort, lt=morehue) # Do you even sort brah!?
     shuffle!(colors)
@@ -84,7 +87,7 @@ function sortedallrgb(bitdepth)
     return result
 end
 
-function iterate(image, blur, sigma)
+@acc function iterate(image, blur, sigma)
 
     tic()
     # shift = offsetsking[mod1(i,end)]
@@ -126,7 +129,7 @@ function iterate(image, blur, sigma)
             y = randn()*sigma
             x = randn()*sigma
             compression = 0.75
-            offset = (int(y < 0 ? -(-y)^compression : y^compression), int(x < 0 ? -(-x)^compression : x^compression))
+            offset = (round(Int, y < 0 ? -(-y)^compression : y^compression), round(Int, x < 0 ? -(-x)^compression : x^compression))
             offset = (offset[1]%size(image)[1], offset[2]%size(image)[2])
             # offset = (int(y/2), int(x/2))
         end
@@ -165,7 +168,7 @@ function iterate(image, blur, sigma)
     return image, toq(), changepercent, bestoffset, maxvariance
 end
 
-function run(image, sigma = 1000)
+function Base.run(image, sigma = 1000)
 
     global running = true
     winy, winx = size(image)
@@ -177,12 +180,12 @@ function run(image, sigma = 1000)
     end
 
 
-    colortype = LAB
+    colortype = RGB
     if colortype == LMS
         blur = gausslms
     elseif colortype == RGB
         blur = gaussrgb1d
-    elseif colortype == LAB
+    elseif colortype == Lab
         blur = gausslab
     elseif colortype == LUV
         blur = gaussluv
@@ -195,7 +198,7 @@ function run(image, sigma = 1000)
     # farr  = Array(Float32,(winy,winx))
     # barr = Array(Bool,(winy,winx))
 
-    imgc, _ = view(iarr1)
+    imgc, _ = ImageView.view(iarr1)
     win = toplevel(imgc)
     bind(win, "<Key>", close)
     bind(win, "<Destroy>", close)
@@ -222,7 +225,7 @@ function run(image, sigma = 1000)
 
         Tk.update()
         if running
-        view(imgc, iarr1)
+        ImageView.view(imgc, iarr1)
         end
 
         print_with_color(:blue, "$increment ")
@@ -235,7 +238,7 @@ function run(image, sigma = 1000)
         end
 
         if increment%10 == 0
-            imwrite(iarr1, "img$(int(time()))-i$(increment).png")
+            save("img$(round(Int, time()))-i$(increment).png", iarr1)
         end
         increment+=1
     end
@@ -244,7 +247,7 @@ function run(image, sigma = 1000)
     print("\nMeðal tíminn var: ", sum(times)/length(times))
     destroy(win)
 
-    imwrite(iarr1, "img$(int(time()))-i$(increment).png")
+    save("img$(round(Int, time()))-i$(increment).png", iarr1)
 
     allrgb(iarr1)
     println("\n", length(Set(iarr1)))

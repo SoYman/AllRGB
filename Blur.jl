@@ -13,7 +13,7 @@ function gaussrgb(image::Image, sigma, iterations)
     h,w = size(image)
 
     for i = 1:iterations
-        rad = i-1<m?int((wl-1)/2):int((wu-1)/2)
+        rad = i-1<m?round(Int, (wl-1)/2):round(Int, (wu-1)/2)
         up = rad+1
 
         intim = cumsum(cumsum(padarray(result, (up,up),(rad,rad), "circular"),1),2)
@@ -34,7 +34,7 @@ function gaussrgb1d(image, sigma, iterations)
     h,w = size(image)
     rad,up = 0,0
     for i = 1:iterations*2
-        rad = int(i/2)-1<m?int((wl-1)/2):int((wu-1)/2)
+        rad = round(Int, i/2)-1<m?round(Int, (wl-1)/2):round(Int, (wu-1)/2)
         up = rad+1
 
         intim = cumsum(padarray(result, (0,up),(0,rad), "circular"),2)
@@ -43,21 +43,21 @@ function gaussrgb1d(image, sigma, iterations)
         
         result = (expanded[:,up:(i>iterations?h:w)+rad])
         if i == iterations
-            result = transpose(result / ((up+rad)^(iterations)))
+            result = permutedims(result / ((up+rad)^(iterations)), [2, 1])
         end
     end
-    return Image(transpose(result / ((up+rad)^(iterations))))
+    return Image(permutedims(result / ((up+rad)^(iterations)), [2, 1]))
 end
 
 function gausslab(image, sigma, iterations)
     image = Image(image)
     image["spatialorder"] = ["y","x"]
     wl, wu, m = solveinteg(sigma, iterations)
-    result = convert(Array{LAB{Float32}}, copy(image))
+    result = convert(Array{Lab{Float32}}, copy(image))
     h,w = size(image)
     rad,up = 0,0
     for i = 1:iterations*2
-        rad = int(i/2)-1<m?int((wl-1)/2):int((wu-1)/2)
+        rad = round(Int, i/2)-1<m ? round(Int, (wl-1)/2) : round(Int, (wu-1)/2)
         up = rad+1
 
         intim = cumsum(padarray(result, (0,up),(0,rad), "circular"),2)
@@ -80,7 +80,7 @@ function gaussluv(image, sigma, iterations)
     h,w = size(image)
     rad,up = 0,0
     for i = 1:iterations*2
-        rad = int(i/2)-1<m?int((wl-1)/2):int((wu-1)/2)
+        rad = round(Int, i/2)-1<m?round(Int, (wl-1)/2):round(Int, (wu-1)/2)
         up = rad+1
 
         intim = cumsum(padarray(result, (0,up),(0,rad), "circular"),2)
@@ -102,7 +102,7 @@ function gausslms(image::Image, sigma, iterations)
     h,w = size(image)
 
     for i = 1:iterations
-        rad = i-1<m?int((wl-1)/2):int((wu-1)/2)
+        rad = i-1<m?round(Int, (wl-1)/2):round(Int, (wu-1)/2)
         up = rad+1
 
         intim = cumsum(cumsum(padarray(result, (up,up),(rad,rad), "circular"),1),2)
@@ -123,12 +123,12 @@ end
 function solveinteg(sigma, n)
     
     if sigma < 0.8
-        print("Sigma values below about 0.8 cannot be represented")
+        prround(Int, "Sigma values below about 0.8 cannot be represented")
         sigma = 0.8
     end
     wIdeal = sqrt(12*sigma^2/n + 1) # Ideal averaging filter width    
     # wl is first odd valued integer less than wIdeal
-    wl = int(floor(wIdeal))
+    wl = round(Int, floor(wIdeal))
     mod(wl,2) == 0 ? wl = wl-1 : 0
     # wu is the next odd value > wl
     wu = wl+2
@@ -140,7 +140,7 @@ function solveinteg(sigma, n)
         error("calculation of m has failed")
     end
     sigmaActual = sqrt((m*wl^2 + (n-m)*wu^2 - n)/12)
-    # print("$wl $wu  $m actual sigma $sigmaActual\n")
+    # prround(Int, "$wl $wu  $m actual sigma $sigmaActual\n")
     return wl, wu, m, sigmaActual
 end
 
@@ -217,7 +217,7 @@ function gaussCL(image::Image, sigma, iterations)
     println("kernels")
 
     for i = 1:iterations
-        radius = uint16(i-1<m?int((wl-1)/2):int((wu-1)/2))
+        radius = uint16(i-1<m?round(Int, (wl-1)/2):round(Int, (wu-1)/2))
         println("starting pass $i")
         println("$((height(out))), $(width(out)), $radius")
         cl.call(queue, kernel, w, nothing, buff1, buff2, h, radius)
@@ -230,15 +230,16 @@ function gaussCL(image::Image, sigma, iterations)
     return (Image(out))
 end
 
-function enqueue_gauss_kernel{T}(queue::cl.CmdQueue, kernel::cl.Kernel, dst::cl.Buffer{T}, src::cl.Buffer{T}, dims)
-    BLOCK_SIZE = 16
-    h,w = dims
-    @assert w % BLOCK_SIZE == 0
-    @assert h % BLOCK_SIZE == 0
-    cl.set_args!(kernel, dst, src, uint32(h), uint32(h))
-    cl.enqueue_kernel(queue, kernel, (h, w), (BLOCK_SIZE, BLOCK_SIZE))
+# Commented out since it needs an update
+# function enqueue_gauss_kernel{T}(queue::cl.CmdQueue, kernel::cl.Kernel, dst::cl.Buffer{T}, src::cl.Buffer{T}, dims)
+#     BLOCK_SIZE = 16
+#     h,w = dims
+#     @assert w % BLOCK_SIZE == 0
+#     @assert h % BLOCK_SIZE == 0
+#     cl.set_args!(kernel, dst, src, uint32(h), uint32(h))
+#     cl.enqueue_kernel(queue, kernel, (h, w), (BLOCK_SIZE, BLOCK_SIZE))
 
-end
+# end
 
 function split_colors(image::Image)
     #function body

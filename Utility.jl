@@ -1,22 +1,28 @@
 # Inline operators
 
-(*)(a::RGB, b::RGB) = RGB(a.r*b.r, a.b*b.b, a.g*b.g)
+import Base.+
+import Base.(.+)
+import Base.-
+import Base.*
+import Base./
+import Base.(./)
+*(a::RGB, b::RGB) = RGB(a.r*b.r, a.b*b.b, a.g*b.g)
 (-)(a::LMS, b::LMS) = LMS(a.l-b.l, a.m-b.m, a.s-b.s)
 (/)(a::LMS, b::Int) = LMS(a.l / b, a.m / b, a.s / b)
 (./)(a::LMS, b::Int) = (/)(a,b)
 
-(+)(a::LAB, b::LAB) = LAB(a.l+b.l, a.a+b.a, a.b+b.b)
-(.+)(a::LAB, b::LAB) = (+)(a,b)
-(-)(a::LAB, b::LAB) = LAB(a.l-b.l, a.a-b.a, a.b-b.b)
-(/)(a::LAB, b::Int) = LAB(a.l / b, a.a / b, a.b / b)
-(./)(a::LAB, b::Int) = (/)(a,b)
++(a::Lab{Float32}, b::Lab{Float32}) = Lab(a.l+b.l, a.a+b.a, a.b+b.b)
+(.+)(a::Lab, b::Lab) = (+)(a,b)
+(-)(a::Lab, b::Lab) = Lab(a.l-b.l, a.a-b.a, a.b-b.b)
+(/)(a::Lab, b::Int) = Lab(a.l / b, a.a / b, a.b / b)
+(./)(a::Lab, b::Int) = (/)(a,b)
 
-(+)(a::LUV, b::LUV) = LUV(a.l+b.l, a.u+b.u, a.v+b.v)
-(.+)(a::LUV, b::LUV) = (+)(a,b)
-(-)(a::LUV, b::LUV) = LUV(a.l-b.l, a.u-b.u, a.v-b.v)
-(/)(a::LUV, b::Int) = LUV(a.l / b, a.u / b, a.v / b)
-(./)(a::LUV, b::Int) = (/)(a,b)
--(t::(Real, Real)) = (-t[1], -t[2])
+(+)(a::Luv, b::Luv) = Luv(a.l+b.l, a.u+b.u, a.v+b.v)
+(.+)(a::Luv, b::Luv) = (+)(a,b)
+(-)(a::Luv, b::Luv) = Luv(a.l-b.l, a.u-b.u, a.v-b.v)
+(/)(a::Luv, b::Int) = Luv(a.l / b, a.u / b, a.v / b)
+(./)(a::Luv, b::Int) = (/)(a,b)
+-(t::Tuple{Real, Real}) = (-t[1], -t[2])
 
 # Functions
 
@@ -40,12 +46,16 @@ function compareEuclidean(f::LMS, a::LMS)
     return (c1.l^2+c1.m^2+c1.s^2)
 end
 
+function compareEuclidean(f::Lab, a::Lab)
+    c = f - a
+    return sqrt(c.l^2+c.a^2+c.b^2)
+end
 
-compareSqEuclidean(a::LAB, b::LAB) = sqeuclidean([a.l,a.a,a.b],[b.l,b.a,b.b])
+compareSqEuclidean(a::Lab, b::Lab) = sqeuclidean([a.l,a.a,a.b],[b.l,b.a,b.b])
 
-# compareEuclidean(a::LAB, b::LAB) = euclidean([a.l,a.a,a.b],[b.l,b.a,b.b])
+# compareEuclidean(a::Lab, b::Lab) = euclidean([a.l,a.a,a.b],[b.l,b.a,b.b])RGB
 
-function compareEuclidean(f::LAB, a::LAB)
+function compareEuclidean(f::Lab, a::Lab)
     c = f - a
     return sqrt(c.l^2+c.a^2+c.b^2)
 end
@@ -66,9 +76,9 @@ end
 
 morehue(a, b) = convert(HSV, a).h < convert(HSV, b).h
 
-moreLuv(a, b) = convert(LUV, a).l < convert(LUV, b).l
-morelUv(a, b) = convert(LUV, a).u < convert(LUV, b).u
-moreluV(a, b) = convert(LUV, a).v < convert(LUV, b).v
+moreLuv(a, b) = convert(Luv, a).l < convert(Luv, b).l
+moreLuv(a, b) = convert(Luv, a).u < convert(Luv, b).u
+moreLuv(a, b) = convert(Luv, a).v < convert(Luv, b).v
 moreLch(a::LCHab, b::LCHab) = (a.l < b.l)
 morelCh(a::LCHab, b::LCHab) = (a.c < b.c)
 morelcH(a::LCHab, b::LCHab) = (a.h < b.h)
@@ -87,7 +97,7 @@ compare = compareEuclidean
 
 elementswap(bool, a, b) = bool ? a : b
 
-close(event) = global running = false
+Base.close(event) = global running = false
 
 function allrgb(image)
     if length(Set(image)) == length(image) #Assert that the image only has unique colors
